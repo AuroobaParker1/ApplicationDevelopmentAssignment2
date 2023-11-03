@@ -1,7 +1,21 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:firebase_core/firebase_core.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(
+    options: const FirebaseOptions(
+      appId: '1:951365763703:android:c2c8d4a6e04b299a1bbc72',
+      apiKey: 'AIzaSyDp2L61m5ZniQy_Zb1E1rJz-IxfYvzxzdI',
+      messagingSenderId: '951365763703',
+      projectId: 'appdev-13df5',
+      authDomain: 'appdev-13df5.firebaseapp.com	',
+      databaseURL: '',
+      storageBucket: '',
+    ),
+  );
   runApp(
     ChangeNotifierProvider(
       create: (_) => ThemeProvider(),
@@ -60,6 +74,7 @@ class _MyHomePageState extends State<SignInPage> {
   TextEditingController passwordController = TextEditingController();
   var emailError;
   var passwordError;
+  bool isSignedIn = false;
 
   void _handleSignUp() {
     Navigator.push(
@@ -104,6 +119,27 @@ class _MyHomePageState extends State<SignInPage> {
       setState(() {
         passwordError = null;
       });
+    }
+  }
+
+  void _signIn() async {
+    try {
+      UserCredential userCredential = await FirebaseAuth.instance
+          .signInWithEmailAndPassword(
+              email: emailController.text, password: passwordController.text);
+      setState(() {
+        isSignedIn = true;
+      });
+    } catch (e) {
+      print(e.toString());
+    }
+  }
+
+  void _signOut() async {
+    try {
+      await FirebaseAuth.instance.signOut();
+    } catch (e) {
+      print(e.toString());
     }
   }
 
@@ -172,11 +208,29 @@ class _MyHomePageState extends State<SignInPage> {
                       height: 45,
                       child: FloatingActionButton(
                           backgroundColor: Colors.deepPurpleAccent.shade100,
-                          onPressed: () {},
+                          onPressed: () {
+                            _signIn();
+                          },
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(70),
                           ),
                           child: const Text("Sign In")),
+                    ),
+                    Visibility(
+                      visible: isSignedIn,
+                      child: SizedBox(
+                        width: MediaQuery.of(context).size.width,
+                        height: 45,
+                        child: FloatingActionButton(
+                            backgroundColor: Colors.deepPurpleAccent.shade100,
+                            onPressed: () {
+                              _signOut();
+                            },
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(70),
+                            ),
+                            child: const Text("Log Out")),
+                      ),
                     ),
                     const SizedBox(height: 20),
                     Row(children: [
@@ -279,6 +333,16 @@ class _SignUpPageState extends State<SignUpPage> {
     }
   }
 
+  void _signUp() async {
+    try {
+      UserCredential userCredential = await FirebaseAuth.instance
+          .createUserWithEmailAndPassword(
+              email: emailController.text, password: passwordController.text);
+    } catch (e) {
+      print(e.toString());
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -367,7 +431,9 @@ class _SignUpPageState extends State<SignUpPage> {
                       height: 45,
                       child: FloatingActionButton(
                           backgroundColor: Colors.deepPurpleAccent.shade100,
-                          onPressed: () {},
+                          onPressed: () {
+                            _signUp();
+                          },
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(70),
                           ),
