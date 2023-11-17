@@ -1,27 +1,42 @@
+// ignore_for_file: prefer_typing_uninitialized_variables, use_build_context_synchronously, avoid_print, sized_box_for_whitespace, use_key_in_widget_constructors
+
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'dashboard.dart';
+import 'firebase_options.dart';
+import 'package:google_sign_in/google_sign_in.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(
-    options: const FirebaseOptions(
-      appId: '1:951365763703:android:c2c8d4a6e04b299a1bbc72',
-      apiKey: 'AIzaSyDp2L61m5ZniQy_Zb1E1rJz-IxfYvzxzdI',
-      messagingSenderId: '951365763703',
-      projectId: 'appdev-13df5',
-      authDomain: 'appdev-13df5.firebaseapp.com	',
-      databaseURL: '',
-      storageBucket: '',
-    ),
-  );
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.android);
   runApp(
     ChangeNotifierProvider(
       create: (_) => ThemeProvider(),
       child: const MyApp(),
     ),
   );
+}
+
+Future<UserCredential?> signInWithGoogle() async {
+  try {
+    final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
+    if (googleUser == null) return null; // User canceled the sign-in process
+
+    final GoogleSignInAuthentication googleAuth =
+        await googleUser.authentication;
+    final AuthCredential credential = GoogleAuthProvider.credential(
+      accessToken: googleAuth.accessToken,
+      idToken: googleAuth.idToken,
+    );
+
+    return await FirebaseAuth.instance.signInWithCredential(credential);
+  } catch (e) {
+    print(e.toString());
+    return null;
+  }
 }
 
 class ThemeProvider extends ChangeNotifier {
@@ -54,10 +69,12 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    User? user = FirebaseAuth.instance.currentUser;
+
     return MaterialApp(
       title: 'Flutter Demo',
       theme: Provider.of<ThemeProvider>(context).currentTheme,
-      home: const SignInPage(),
+      home: user != null ? const WelcomePage() : const SignInPage(),
     );
   }
 }
@@ -124,22 +141,22 @@ class _MyHomePageState extends State<SignInPage> {
 
   void _signIn() async {
     try {
-      UserCredential userCredential = await FirebaseAuth.instance
-          .signInWithEmailAndPassword(
-              email: emailController.text, password: passwordController.text);
+      await FirebaseAuth.instance.signInWithEmailAndPassword(
+          email: emailController.text, password: passwordController.text);
       setState(() {
         isSignedIn = true;
       });
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const WelcomePage()),
+      );
     } catch (e) {
       print(e.toString());
-    }
-  }
-
-  void _signOut() async {
-    try {
-      await FirebaseAuth.instance.signOut();
-    } catch (e) {
-      print(e.toString());
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("Error signing in: ${e.toString()}"),
+        ),
+      );
     }
   }
 
@@ -216,20 +233,42 @@ class _MyHomePageState extends State<SignInPage> {
                           ),
                           child: const Text("Sign In")),
                     ),
-                    Visibility(
-                      visible: isSignedIn,
-                      child: SizedBox(
-                        width: MediaQuery.of(context).size.width,
-                        height: 45,
-                        child: FloatingActionButton(
-                            backgroundColor: Colors.deepPurpleAccent.shade100,
-                            onPressed: () {
-                              _signOut();
-                            },
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(70),
+                    const SizedBox(height: 20),
+                    SizedBox(
+                      width: MediaQuery.of(context).size.width,
+                      height: 45,
+                      child: ElevatedButton(
+                        onPressed: () async {
+                          UserCredential? userCredential =
+                              await signInWithGoogle();
+                          if (userCredential != null) {
+                            print(
+                                "Google sign-in successful: ${userCredential.user?.displayName}");
+                          } else {
+                            print("Google sign-in failed.");
+                          }
+                        },
+                        style: ElevatedButton.styleFrom(
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(
+                                20.0), // Adjust the radius as needed
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Padding(
+                              padding: const EdgeInsets.only(
+                                  right: 8.0), // Adjust the spacing as needed
+                              child: SvgPicture.asset(
+                                'assets/google-icon.svg', // Replace with the path to your Google logo SVG
+                                height: 24.0, // Adjust the height as needed
+                                width: 24.0, // Adjust the width as needed
+                              ),
                             ),
-                            child: const Text("Log Out")),
+                            Text("Sign in with Google"),
+                          ],
+                        ),
                       ),
                     ),
                     const SizedBox(height: 20),
@@ -335,11 +374,19 @@ class _SignUpPageState extends State<SignUpPage> {
 
   void _signUp() async {
     try {
-      UserCredential userCredential = await FirebaseAuth.instance
-          .createUserWithEmailAndPassword(
-              email: emailController.text, password: passwordController.text);
+      await FirebaseAuth.instance.createUserWithEmailAndPassword(
+          email: emailController.text, password: passwordController.text);
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const WelcomePage()),
+      );
     } catch (e) {
       print(e.toString());
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("Error signing up: ${e.toString()}"),
+        ),
+      );
     }
   }
 
@@ -464,7 +511,7 @@ class CustomSwitch extends StatelessWidget {
   final bool value;
   final ValueChanged<bool> onChanged;
 
-  CustomSwitch({required this.value, required this.onChanged});
+  const CustomSwitch({required this.value, required this.onChanged});
 
   @override
   Widget build(BuildContext context) {
